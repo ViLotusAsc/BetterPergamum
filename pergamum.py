@@ -4,6 +4,7 @@ from bs4 import BeautifulSoup
 import re
 from urllib.parse import quote
 import urllib3
+import json
 
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -150,11 +151,80 @@ class Session:
         resultados = extrair_itens(response.text)
         return resultados
     
+    def _search_debt(self):
+        cookies = {
+            'PHPSESSID': self.phpsessid,
+        }
+
+        headers = {
+            'Host': 'pergamum.ufv.br',
+            'Method': 'POST /biblioteca_s/meu_pergamum/emp_debito.php HTTP/1.1',
+            'sec-ch-ua-platform': '"Windows"',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36 Edg/139.0.0.0',
+            'sec-ch-ua': '"Not;A=Brand";v="99", "Microsoft Edge";v="139", "Chromium";v="139"',
+            'sec-ch-ua-mobile': '?0',
+            'Accept': '*/*',
+            'Origin': 'https://pergamum.ufv.br',
+            'Sec-Fetch-Site': 'same-origin',
+            'Sec-Fetch-Mode': 'cors',
+            'Sec-Fetch-Dest': 'empty',
+            'Referer': 'https://pergamum.ufv.br/biblioteca_s/meu_pergamum/emp_debito.php',
+            'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6',
+            # 'Cookie': 'PHPSESSID=odu5s15j1qtbo6tta41806def2',
+            'Content-Type': 'application/x-www-form-urlencoded',
+        }
+
+        data = 'rs=ajax_mostra_tabela&rst=&rsrnd=1757165872989&rsargs[]=06/09/2024&rsargs[]=06/09/2025'
+
+        response = requests.post(
+            'https://pergamum.ufv.br/biblioteca_s/meu_pergamum/emp_debito.php',
+            cookies=cookies,
+            headers=headers,
+            data=data,
+            verify=False,
+        )
+
+        pattern = re.compile(
+            r"class=\\'box_azul_left\\'>(.*?)</td>",
+            re.S
+        )
+        pattern_multa = re.compile(
+            r"class=\\'box_magenta_c\\'>(.*?)</td>",
+            re.S
+        )
+
+        matches = pattern.findall(response.text)
+        matches_multa = pattern_multa.findall(response.text)
+        matches.pop(0)
+        matches_multa.pop(0)
+
+
+        result = []
+        for nome in matches:
+            # Remove tags HTML (<i>, <strong>, etc.)
+            nome_limpo = re.sub(r"<.*?>", "", nome).strip()
+            result.append(nome_limpo)
+        
+        retorno = []
+        for nome_ in result:
+            retorno.append({"nome":nome_, "debt":"0"})
+
+        counter = 0
+        for preco in matches_multa:
+            retorno[counter]["debt"] = preco
+            counter+=1
+
+
+        return retorno
+
+
+
 
 # sessao = Session()
 # sessao._create_session()
 # print(sessao.phpsessid)
 # sessao._login("120570", "4432")
+# sessao._search_debt()
 
 
 
