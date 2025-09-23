@@ -226,7 +226,7 @@ elif tab == "RU":
     if not st.session_state.logado:
         st.warning("Faça login primeiro para usar o chat.")
     else:
-        st_autorefresh(interval=5_000, key="chat_refresh")
+        st_autorefresh(interval=10_000, key="chat_refresh")
         # Atualiza a cada 10 segundos
         #st.experimental_autorefresh(interval=10_000, key="chat_refresh")
 
