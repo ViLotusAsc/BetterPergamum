@@ -182,10 +182,8 @@ elif tab == "Buscar Livros":
     if st.button("Buscar"):
         resultados = st.session_state.sessao._book_search(termo)
 
-        # Converte para DataFrame e exibe
         if resultados:
             df_livros = pd.DataFrame(resultados)
-            # Seleciona colunas que quer mostrar (ajuste conforme a estrutura do retorno)
             colunas = []
             if 'nome' in df_livros.columns:
                 colunas.append('nome')
@@ -201,15 +199,12 @@ elif tab == "Buscar Débito":
     else:
         st.write(f"Histórico de Débito de {st.session_state.sessao.nome}:")
         if st.button("Atualizar débitos"):
-            # Aqui você integra a função real de busca de débitos
             debitos = st.session_state.sessao._search_debt()
             st.session_state.debitos = debitos
 
-                # Exibir em tabela
     if st.session_state.debitos:
         df_debitos = pd.DataFrame(st.session_state.debitos)
 
-        # Seleciona apenas colunas de interesse
         colunas = []
         if 'nome' in df_debitos.columns:
             colunas.append('nome')
@@ -227,19 +222,18 @@ elif tab == "RU":
         st.warning("Faça login primeiro para usar o chat.")
     else:
         st_autorefresh(interval=10_000, key="chat_refresh")
-        # Atualiza a cada 10 segundos
         #st.experimental_autorefresh(interval=10_000, key="chat_refresh")
 
-        # Cria dataframe alinhando por colunas
+
         df = pd.DataFrame(_get_cardapio(datetime.now().strftime("%d/%m/%Y"))).T
         df.columns = ["Café da Manhã", "Almoço", "Jantar"]
 
         st.title("Cardápio do Dia")
-        st.table(df.fillna(""))  # preenche espaços vazios
+        st.table(df.fillna(""))  
 
-        # Carregar mensagens
+
         mensagens = see_chat()
-        mensagens = mensagens[29:]  # descarta as iniciais
+        mensagens = mensagens[29:]  
 
         st.subheader("Discussão")
 
@@ -283,7 +277,6 @@ elif tab == "RU":
 
         st.divider()
 
-        # Input de mensagem
         st.subheader("Enviar mensagem")
         mensagem_env = st.text_input("Digite sua mensagem aqui:")
 
@@ -291,7 +284,7 @@ elif tab == "RU":
             if mensagem_env.strip():
                 send_msg(f"[{st.session_state.sessao.nome}] {mensagem_env}")
                 st.success("Mensagem enviada!")
-                st.rerun()  # força atualizar o chat logo após enviar
+                st.rerun()  
             else:
                 st.error("Mensagem vazia não pode ser enviada.")
 
