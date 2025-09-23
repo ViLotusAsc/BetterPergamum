@@ -165,15 +165,12 @@ if tab == "Login":
     matricula = st.text_input("Matrícula")
     senha = st.text_input("Senha", type="password")
     if st.button("Entrar"):
-        if not st.session_state.cookie:
-            st.warning("Crie uma sessão primeiro!")
-        else:
-            st.session_state.cookie = st.session_state.sessao._create_session()
-            st.write(f"id: `{st.session_state.cookie}`")
-            st.session_state.sessao.phpsessid = st.session_state.cookie
-            st.session_state.sessao._login(matricula=matricula, senha=senha)
-            st.session_state.logado = True
-            st.success(f"Bem-vindo, {st.session_state.sessao.nome}!")
+        st.session_state.cookie = st.session_state.sessao._create_session()
+        st.write(f"id: `{st.session_state.cookie}`")
+        st.session_state.sessao.phpsessid = st.session_state.cookie
+        st.session_state.sessao._login(matricula=matricula, senha=senha)
+        st.session_state.logado = True
+        st.success(f"Bem-vindo, {st.session_state.sessao.nome}!")
 
     #if st.session_state.logado:
     #    st.info(f"Usuário logado: {st.session_state.sessao.nome}")
