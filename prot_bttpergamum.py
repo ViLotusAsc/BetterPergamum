@@ -1,5 +1,8 @@
 import streamlit as st
+from streamlit_autorefresh import st_autorefresh
+from datetime import datetime
 import pandas as pd
+import json
 from pergamum import Session
 import requests
 
@@ -85,6 +88,53 @@ def send_msg(msg):
     response = requests.post('https://ava.ufv.br/webservice/rest/server.php', params=params, headers=headers, data=data)
     return response.text
 
+def _get_cardapio(data):
+    cookies = {
+        '_ga_3GKTCB3HHS': 'GS2.1.s1758646399$o2$g0$t1758646399$j60$l0$h0',
+        '_ga': 'GA1.1.523303875.1758566439',
+        'PHPSESSID': 'dovt95ssmutri5c3rbm069knk4',
+    }
+
+    headers = {
+        'user-agent': 'Mozilla/5.0 (X11; Linux x86_64; rv:142.0) Gecko/20100101 Firefox/142.0',
+        'accept': 'application/json, text/javascript, */*; q=0.01',
+        'accept-language': 'pt-BR,pt;q=0.8,en-US;q=0.5,en;q=0.3',
+        'content-type': 'application/x-www-form-urlencoded; charset=UTF-8',
+        'x-requested-with': 'XMLHttpRequest',
+        'origin': 'https://cardapio.ufv.br',
+        'referer': 'https://cardapio.ufv.br/',
+        # 'cookie': '_ga_3GKTCB3HHS=GS2.1.s1758646399$o2$g0$t1758646399$j60$l0$h0; _ga=GA1.1.523303875.1758566439; PHPSESSID=dovt95ssmutri5c3rbm069knk4',
+        'sec-fetch-dest': 'empty',
+        'sec-fetch-mode': 'cors',
+        'sec-fetch-site': 'same-origin',
+        'priority': 'u=0',
+        # Requests doesn't support trailers
+        # 'te': 'trailers',
+    }
+
+    data = {
+        'data_selecionada': data,
+    }
+
+    response = requests.post(
+        'https://cardapio.ufv.br/~Cevutaisdotantencharamautapas23usdenusjatepro/ajaxBuscaCardapioPorData.php',
+        cookies=cookies,
+        headers=headers,
+        data=data,
+    )
+
+
+
+    print(json.dumps(response.json(), indent=4))
+
+    cardapio = [[], [], [], [], [], []]
+
+    for item in response.json()["dados"]:
+        cardapio[int(item["refeicao_id"])].append(item["composicao"])
+        #print(f"Item: {item["composicao"]}")
+
+    return cardapio[3:]
+
 if "sessao" not in st.session_state:
     st.session_state.sessao = Session()
 if "cookie" not in st.session_state:
@@ -102,15 +152,15 @@ st.write("Reversed Engineered Pergamum (UFV)")
 
 tab = st.sidebar.radio(
     "Escolha a ação:",
-    ["Login", "Buscar Livros", "Buscar Débito", "Chat"]
+    ["Login", "Buscar Livros", "Buscar Débito", "RU"]
 )
 
 if tab == "Login":
-    st.header("Criar Sessão")
-    if st.button("Criar nova sessão"):
-        st.session_state.cookie = st.session_state.sessao._create_session()
-        st.success("Sessão criada com sucesso!")
-        st.write(f"id: `{st.session_state.cookie}`")
+    #st.header("Criar Sessão")
+    #if st.button("Criar nova sessão"):
+    #    st.session_state.cookie = st.session_state.sessao._create_session()
+    #    st.success("Sessão criada com sucesso!")
+    #    st.write(f"id: `{st.session_state.cookie}`")
     st.header("Login")
     matricula = st.text_input("Matrícula")
     senha = st.text_input("Senha", type="password")
@@ -118,13 +168,15 @@ if tab == "Login":
         if not st.session_state.cookie:
             st.warning("Crie uma sessão primeiro!")
         else:
+            st.session_state.cookie = st.session_state.sessao._create_session()
+            st.write(f"id: `{st.session_state.cookie}`")
             st.session_state.sessao.phpsessid = st.session_state.cookie
             st.session_state.sessao._login(matricula=matricula, senha=senha)
             st.session_state.logado = True
             st.success(f"Bem-vindo, {st.session_state.sessao.nome}!")
 
-    if st.session_state.logado:
-        st.info(f"Usuário logado: {st.session_state.sessao.nome}")
+    #if st.session_state.logado:
+    #    st.info(f"Usuário logado: {st.session_state.sessao.nome}")
 
 elif tab == "Buscar Livros":
     st.header("Buscar Livros")
@@ -171,31 +223,66 @@ elif tab == "Buscar Débito":
     else:
         st.info("Nenhum débito encontrado.")
 
-elif tab == "Chat":
-    st.header("Chat Online")
+elif tab == "RU":
+    st.header("RU UFV")
 
     if not st.session_state.logado:
         st.warning("Faça login primeiro para usar o chat.")
     else:
+        st_autorefresh(interval=5_000, key="chat_refresh")
+        # Atualiza a cada 10 segundos
+        #st.experimental_autorefresh(interval=10_000, key="chat_refresh")
+
+        # Cria dataframe alinhando por colunas
+        df = pd.DataFrame(_get_cardapio(datetime.now().strftime("%d/%m/%Y"))).T
+        df.columns = ["Café da Manhã", "Almoço", "Jantar"]
+
+        st.title("Cardápio do Dia")
+        st.table(df.fillna(""))  # preenche espaços vazios
+
         # Carregar mensagens
         mensagens = see_chat()
         mensagens = mensagens[29:]  # descarta as iniciais
 
-        st.subheader("Histórico")
-        chat_box = st.container()
-        with chat_box:
-            for msg in mensagens:
-                st.markdown(f"""
-                <div style="
-                    background-color:#f0f2f6;
-                    padding:10px;
-                    border-radius:8px;
-                    margin-bottom:5px;
-                    color:black;
-                ">
-                    {msg}
-                </div>
-                """, unsafe_allow_html=True)
+        st.subheader("Discussão")
+
+        mensagens_html = ""
+        for msg in mensagens:
+            try:
+                nome, conteudo = msg.split("] ", 1)
+                nome = nome.strip("[]")
+            except ValueError:
+                nome, conteudo = "Desconhecido", msg
+
+            mensagens_html += f"""
+            <div style="margin-bottom:6px;">
+                <span style="color:#4fc3f7; font-weight:bold;">{nome}:</span> 
+                <span style="color:#ffffff;">{conteudo}</span>
+            </div>
+            """
+
+        st.markdown(
+            f"""
+            <div id="chat-box" style="
+                background-color:#000000;
+                border:1px solid #444;
+                border-radius:6px;
+                padding:10px;
+                height:250px;
+                overflow-y:scroll;
+            ">
+                {mensagens_html}
+            </div>
+
+            <script>
+                var chatBox = document.getElementById("chat-box");
+                if (chatBox) {{
+                    chatBox.scrollTop = chatBox.scrollHeight;
+                }}
+            </script>
+            """,
+            unsafe_allow_html=True
+        )
 
         st.divider()
 
@@ -207,5 +294,8 @@ elif tab == "Chat":
             if mensagem_env.strip():
                 send_msg(f"[{st.session_state.sessao.nome}] {mensagem_env}")
                 st.success("Mensagem enviada!")
+                st.rerun()  # força atualizar o chat logo após enviar
             else:
                 st.error("Mensagem vazia não pode ser enviada.")
+
+#
